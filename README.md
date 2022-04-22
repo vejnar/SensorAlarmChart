@@ -6,11 +6,11 @@
 
 SensorAlarmChart on Raspberry Pi
 
-    ![On Raspberry Pi](doc/on_pi.webp)
+![On Raspberry Pi](doc/on_pi.webp)
 
 SensorAlarmChart web interface
 
-    ![Chart](doc/chart.webp)
+![Chart](doc/chart.webp)
 
 ## Hardware parts
 
@@ -117,7 +117,7 @@ location /freezers/ {
 }
 ```
 
-`X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Request-Redirect` are used if the `--proxy` is set.
+`X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Request-Redirect` are used if the `--proxy` option is set.
 
 ## License
 

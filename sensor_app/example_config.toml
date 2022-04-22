@@ -1,0 +1,51 @@
+[general]
+hci_device = 0
+#host = "localhost"
+port = 8080
+verbose = false
+
+# Inkbird
+[[sensors]]
+label = "Freezer 1"
+mac = "49:42:08:01:XX:XX"
+parameters = ["temperature", "humidity", "battery"]
+history_seconds = 3600
+history_records = 36
+supp_history_seconds = 120
+supp_history_records = 40
+alarms = [{parameter = "temperature", confirmation = 10, min = -35.0, max = -10.0}]
+
+# Inkbird
+[[sensors]]
+label = "Freezer 2"
+mac = "49:42:08:02:XX:XX"
+parameters = ["temperature", "humidity", "battery"]
+history_seconds = 3600
+history_records = 36
+supp_history_seconds = 120
+supp_history_records = 40
+alarms = [{parameter = "temperature", confirmation = 10, min = -35.0, max = -10.0}]
+
+[[reporters]]
+name = "console"
+url = ""
+error_header = ""
+error_footer = ""
+ok_interval = "1m"
+error_interval = "2h"
+
+[[reporters]]
+name = "matrix"
+url = "https://matrix-client.matrix.org/_matrix/client/r0/rooms/ROOM:matrix.org/send/m.room.message?access_token=TOKEN"
+error_header = "! ALARM"
+error_footer = "@john.smith:matrix.org"
+ok_interval = "1d"
+error_interval = "2h"
+
+[[reporters]]
+name = "slack"
+url = "https://hooks.slack.com/services/TOKENxxx/Bxxx/Gxxx"
+error_header = ":thermometer:*ALARM*"
+error_footer = "<@channel>"
+ok_interval = "1d"
+error_interval = "2h"

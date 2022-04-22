@@ -1,0 +1,19 @@
+[Unit]
+Description=SensorAlarmChart Service
+# RPi-specific
+Requires=bthelper@hci0.service
+After=bthelper@hci0.service
+
+[Service]
+Type=simple
+AmbientCapabilities=CAP_NET_RAW
+User=tech
+ExecStartPre=/bin/sleep 10s
+ExecStart=python3 /home/tech/sensor_app/app.py --path_config /home/tech/sensor_app/config.toml --proxy
+Restart=on-failure
+RestartSec=10
+StandardOutput=tty
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

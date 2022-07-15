@@ -243,6 +243,7 @@ async def run_ble(hci_device=0, sensors=[], verbose=False):
 
     # Init controller
     conn, btctrl = await loop._create_connection_transport(bt_socket, BLEScanRequesterUpdater, None, None)
+    assert conn.is_reading(), 'Bluetooth device not ready'
     await btctrl.send_scan_request(isactivescan=True)
 
     # Add sensors to controller

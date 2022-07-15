@@ -47,6 +47,32 @@ table.status td {
     border-bottom: 1px solid black;
 }
 
+table.status tr > td:last-of-type {
+    text-align: center;
+}
+
+a.action {
+    display: inline-block;
+    padding-left: 1em;
+    padding-right: 1em;
+    padding-top: 0.2em;
+    padding-bottom: 0.2em;
+    margin-top: 0.1em;
+    margin-bottom: 0.1em;
+    color: white;
+    text-decoration: none;
+    font-size: 80%;
+    border: none;
+    border-radius: 3px;
+    background-color: rgb(100, 100, 100);
+}
+
+a.action:hover,
+a.action:focus {
+    color: white;
+    background-color: rgb(170, 170, 170);
+}
+
 .alarm {
     color: rgb(255, 42, 42);
     font-weight: bold;
@@ -54,4 +80,8 @@ table.status td {
 
 .ok {
     color: rgb(55, 200, 55);
+}
+
+.paused {
+    color: rgb(100, 100, 100);
 }

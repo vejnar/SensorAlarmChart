@@ -36,6 +36,16 @@ def get_ip():
         s.close()
     return myip
 
+def parse_time(raw_time):
+    if raw_time.endswith('d'):
+        return int(raw_time[:-1]) * 60. * 60. * 24.
+    elif raw_time.endswith('h'):
+        return int(raw_time[:-1]) * 60. * 60.
+    elif raw_time.endswith('m'):
+        return int(raw_time[:-1]) * 60.
+    else:
+        raise ValueError(raw_time)
+
 class BLEScanRequesterUpdater(aioblescan.BLEScanRequester):
     def set_parser(self, sensors):
         self.sensors = {sensor['mac'].replace(':', ''): sensor for sensor in sensors}
@@ -87,32 +97,41 @@ class BLEScanRequesterUpdater(aioblescan.BLEScanRequester):
                 # Alarm(s)
                 if 'alarms' in self.app['ble_status']['sensors'][mac]:
                     for alarm in self.app['ble_status']['sensors'][mac]['alarms']:
-                        alert = None
-                        sensor_value = raw_sensor_data[alarm['parameter']]
-                        if sensor_value < alarm['min']:
-                            alert = f"{sensor['label']}: {alarm['parameter']} too low (min {alarm['min']}) at {sensor_value}"
-                        elif sensor_value > alarm['max']:
-                            alert = f"{sensor['label']}: {alarm['parameter']} too high (max {alarm['max']}) at {sensor_value}"
-                        if alert:
+                        if alarm['status'] == 'paused':
                             if self.verbose:
-                                print('> ALERT', alert)
-                            alarm['counter'] += 1
-                            alarm['status'] = 'alert'
-                            if alarm['counter'] >= alarm['confirmation']:
+                                print('> PAUSED', sensor['label'])
+                            if alarm['pause_start'] < now - sensor['pause_alarm']:
                                 if self.verbose:
-                                    print('> ALARM', alert)
-                                alarm['status'] = 'alarm'
-                                for reporter in self.reporters:
-                                    reporter.report(mac, alert, 'error', ble_status=self.app['ble_status'])
+                                    print('> RESET PAUSE', sensor['label'])
+                                alarm['counter'] = 0
+                                alarm['status'] = 'NA'
                         else:
-                            if alarm['counter'] >= alarm['confirmation']:
-                                normal = f"{sensor['label']}: {alarm['parameter']} back to normal range at {sensor_value}"
+                            alert = None
+                            sensor_value = raw_sensor_data[alarm['parameter']]
+                            if sensor_value < alarm['min']:
+                                alert = f"{sensor['label']}: {alarm['parameter']} too low (min {alarm['min']}) at {sensor_value}"
+                            elif sensor_value > alarm['max']:
+                                alert = f"{sensor['label']}: {alarm['parameter']} too high (max {alarm['max']}) at {sensor_value}"
+                            if alert:
                                 if self.verbose:
-                                    print('> NORMAL', normal)
-                                for reporter in self.reporters:
-                                    reporter.report(mac, normal, 'back', ble_status=self.app['ble_status'])
-                            alarm['counter'] = 0
-                            alarm['status'] = 'OK'
+                                    print('> ALERT', alert)
+                                alarm['counter'] += 1
+                                alarm['status'] = 'alert'
+                                if alarm['counter'] >= alarm['confirmation']:
+                                    if self.verbose:
+                                        print('> ALARM', alert)
+                                    alarm['status'] = 'alarm'
+                                    for reporter in self.reporters:
+                                        reporter.report(mac, alert, 'error', ble_status=self.app['ble_status'])
+                            else:
+                                if alarm['counter'] >= alarm['confirmation']:
+                                    normal = f"{sensor['label']}: {alarm['parameter']} back to normal range at {sensor_value}"
+                                    if self.verbose:
+                                        print('> NORMAL', normal)
+                                    for reporter in self.reporters:
+                                        reporter.report(mac, normal, 'back', ble_status=self.app['ble_status'])
+                                alarm['counter'] = 0
+                                alarm['status'] = 'OK'
 
 class Reporter():
     def __init__(self, name, url, error_header, error_footer, ok_interval, error_interval):
@@ -120,18 +139,8 @@ class Reporter():
         self.url = url
         self.error_header = error_header
         self.error_footer = error_footer
-        self.interval_reports = {'ok': self.parse_time(ok_interval), 'error': self.parse_time(error_interval)}
+        self.interval_reports = {'ok': parse_time(ok_interval), 'error': parse_time(error_interval)}
         self.last_reports = {}
-
-    def parse_time(self, raw_time):
-        if raw_time.endswith('d'):
-            return int(raw_time[:-1]) * 60. * 60. * 24.
-        elif raw_time.endswith('h'):
-            return int(raw_time[:-1]) * 60. * 60.
-        elif raw_time.endswith('m'):
-            return int(raw_time[:-1]) * 60.
-        else:
-            raise ValueError(raw_time)
 
     def get_last_report(self, level, idt):
         if level not in self.last_reports:
@@ -197,6 +206,9 @@ class ConsoleReporter(Reporter):
                     status = '\x1b[1;32m' + f"{'OK':<14}" + '\x1b[0m'
                     if 'alarms' in sensor:
                         for alarm in sensor['alarms']:
+                            if alarm['status'] == 'paused':
+                                status = '\x1b[1;37m' + f"{alarm['status'].title():<14}" + '\x1b[0m'
+                                break
                             if alarm['status'] != 'OK' and alarm['status'] != 'NA':
                                 status = '\x1b[1;31m' + f"{alarm['status'].title():<14}" + '\x1b[0m'
                                 break
@@ -275,6 +287,19 @@ async def status(request):
                                 content_type = 'application/json',
                                 headers = {'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods': 'GET'})
 
+async def request(request):
+    cmd = request.match_info['cmd']
+    mac = request.query['mac'].replace(':', '')
+    if 'alarms' in request.app['ble_status']['sensors'][mac]:
+        for alarm in request.app['ble_status']['sensors'][mac]['alarms']:
+            if cmd == 'pause':
+                alarm['status'] = 'paused'
+                alarm['pause_start'] = time.time()
+            elif cmd == 'reset':
+                alarm['status'] = 'NA'
+                alarm['counter'] = 0
+    raise aiohttp.web.HTTPTemporaryRedirect(request.headers['Referer'])
+
 def create_app(host, port, proxy):
     app = aiohttp.web.Application()
 
@@ -292,7 +317,8 @@ def create_app(host, port, proxy):
     # Add routes
     app.router.add_static('/static', path=os.path.join(os.path.dirname(__file__), 'static'), append_version=True)
     app.router.add_routes([aiohttp.web.get('/', index),
-                           aiohttp.web.get('/status', status)])
+                           aiohttp.web.get('/status', status),
+                           aiohttp.web.get('/request/{cmd}', request)])
 
     return app
 
@@ -331,6 +357,8 @@ async def start_app_scanner(config):
             for alarm in sensor['alarms']:
                 alarm['counter'] = 0
                 alarm['status'] = 'NA'
+        # Parse time
+        sensor['pause_alarm'] = parse_time(sensor.get('pause_alarm', '1h'))
         # Add status to app
         app['ble_status']['data']['history'][rmac] = {p: collections.deque([], maxlen=sensor['history_records']) for p in sensor['parameters']+['time']}
         if 'supp_history_seconds' in sensor:

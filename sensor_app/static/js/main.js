@@ -64,6 +64,8 @@ function status(sensors, container) {
     cell = document.createElement('TH')
     cell.textContent = 'Status'
     row.appendChild(cell)
+    cell = document.createElement('TH')
+    row.appendChild(cell)
     table.appendChild(row)
 
     // Sensor
@@ -80,11 +82,25 @@ function status(sensors, container) {
                     row.appendChild(cell)
                     cell = document.createElement('TD')
                     cell.textContent = alarm['status']
-                    if (alarm['status'] != 'OK') {
+                    if (alarm['status'] == 'alert' || alarm['status'] == 'alarm') {
                         cell.className = 'alarm'
+                    } else if (alarm['status'] == 'paused') {
+                        cell.className = 'paused'
                     } else {
                         cell.className = 'ok'
                     }
+                    row.appendChild(cell)
+                    cell = document.createElement('TD')
+                    let a = document.createElement('A')
+                    a.className = 'action'
+                    if (alarm['status'] == 'paused') {
+                        a.href = 'request/reset?mac=' + sensor['mac']
+                        a.textContent = 'reset'
+                    } else {
+                        a.href = 'request/pause?mac=' + sensor['mac']
+                        a.textContent = 'pause'
+                    }
+                    cell.appendChild(a)
                     row.appendChild(cell)
                     table.appendChild(row)
                 }

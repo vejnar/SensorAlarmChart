@@ -94,10 +94,10 @@ function status(sensors, container) {
                     let a = document.createElement('A')
                     a.className = 'action'
                     if (alarm['status'] == 'paused') {
-                        a.href = 'request/reset?mac=' + sensor['mac']
+                        a.href = `request/reset?mac=${sensor['mac']}&parameter=${alarm['parameter']}`
                         a.textContent = 'reset'
                     } else {
-                        a.href = 'request/pause?mac=' + sensor['mac']
+                        a.href = `request/pause?mac=${sensor['mac']}&parameter=${alarm['parameter']}`
                         a.textContent = 'pause'
                     }
                     cell.appendChild(a)

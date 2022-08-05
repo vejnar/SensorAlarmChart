@@ -100,10 +100,10 @@ class BLEScanRequesterUpdater(aioblescan.BLEScanRequester):
                         if alarm['status'] == 'paused':
                             if self.verbose:
                                 print('> PAUSED', sensor['label'])
-                            if alarm['pause_start'] < now - sensor['pause_alarm']:
+                            if alarm['pause_start'] < now - alarm['pause_duration']:
                                 if self.verbose:
                                     print('> RESET PAUSE', sensor['label'])
-                                alarm['counter'] = 0
+                                alarm['alert_start'] = None
                                 alarm['status'] = 'NA'
                         else:
                             alert = None
@@ -115,22 +115,23 @@ class BLEScanRequesterUpdater(aioblescan.BLEScanRequester):
                             if alert:
                                 if self.verbose:
                                     print('> ALERT', alert)
-                                alarm['counter'] += 1
-                                alarm['status'] = 'alert'
-                                if alarm['counter'] >= alarm['confirmation']:
+                                if alarm['alert_start'] is None:
+                                    alarm['alert_start'] = now
+                                    alarm['status'] = 'alert'
+                                if alarm['alert_duration'] < now - alarm['alert_start']:
                                     if self.verbose:
                                         print('> ALARM', alert)
                                     alarm['status'] = 'alarm'
                                     for reporter in self.reporters:
                                         reporter.report(mac, alert, 'error', ble_status=self.app['ble_status'])
                             else:
-                                if alarm['counter'] >= alarm['confirmation']:
+                                if alarm['status'] == 'alarm':
                                     normal = f"{sensor['label']}: {alarm['parameter']} back to normal range at {sensor_value}"
                                     if self.verbose:
                                         print('> NORMAL', normal)
                                     for reporter in self.reporters:
                                         reporter.report(mac, normal, 'back', ble_status=self.app['ble_status'])
-                                alarm['counter'] = 0
+                                alarm['alert_start'] = None
                                 alarm['status'] = 'OK'
 
 class Reporter():
@@ -290,14 +291,16 @@ async def status(request):
 async def request(request):
     cmd = request.match_info['cmd']
     mac = request.query['mac'].replace(':', '')
+    parameter = request.query['parameter']
     if 'alarms' in request.app['ble_status']['sensors'][mac]:
         for alarm in request.app['ble_status']['sensors'][mac]['alarms']:
-            if cmd == 'pause':
-                alarm['status'] = 'paused'
-                alarm['pause_start'] = time.time()
-            elif cmd == 'reset':
-                alarm['status'] = 'NA'
-                alarm['counter'] = 0
+            if parameter == alarm['parameter']:
+                if cmd == 'pause':
+                    alarm['status'] = 'paused'
+                    alarm['pause_start'] = time.time()
+                elif cmd == 'reset':
+                    alarm['status'] = 'NA'
+                    alarm['alert_start'] = None
     raise aiohttp.web.HTTPTemporaryRedirect(request.headers['Referer'])
 
 def create_app(host, port, proxy):
@@ -352,13 +355,13 @@ async def start_app_scanner(config):
     # Add sensors to app
     for sensor in config['sensors']:
         rmac = sensor['mac'].replace(':', '')
-        # Init. alarm counter
+        # Init. alarm
         if 'alarms' in sensor:
             for alarm in sensor['alarms']:
-                alarm['counter'] = 0
+                alarm['alert_duration'] =  parse_time(alarm.get('alert_duration', '1m'))
+                alarm['alert_start'] = None
+                alarm['pause_duration'] = parse_time(alarm.get('pause_duration', '1h'))
                 alarm['status'] = 'NA'
-        # Parse time
-        sensor['pause_alarm'] = parse_time(sensor.get('pause_alarm', '1h'))
         # Add status to app
         app['ble_status']['data']['history'][rmac] = {p: collections.deque([], maxlen=sensor['history_records']) for p in sensor['parameters']+['time']}
         if 'supp_history_seconds' in sensor:

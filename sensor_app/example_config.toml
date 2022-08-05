@@ -13,8 +13,7 @@ history_seconds = 3600
 history_records = 36
 supp_history_seconds = 120
 supp_history_records = 40
-alarms = [{parameter = "temperature", confirmation = 10, min = -35.0, max = -10.0}]
-pause_alarm = "24h"
+alarms = [{parameter = "temperature", alert_duration = "10m", pause_duration = "24h", min = -35.0, max = -10.0}]
 
 # Inkbird
 [[sensors]]
@@ -25,7 +24,7 @@ history_seconds = 3600
 history_records = 36
 supp_history_seconds = 120
 supp_history_records = 40
-alarms = [{parameter = "temperature", confirmation = 10, min = -35.0, max = -10.0}]
+alarms = [{parameter = "temperature", min = -35.0, max = -10.0}]
 
 [[reporters]]
 name = "console"

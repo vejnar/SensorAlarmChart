@@ -123,4 +123,4 @@ location /freezers/ {
 
 *SensorAlarmChart* is distributed under the Mozilla Public License Version 2.0 (see /LICENSE).
 
-Copyright (C) 2022 Charles E. Vejnar
+Copyright (C) 2022-2023 Charles E. Vejnar

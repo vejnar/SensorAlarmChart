@@ -140,7 +140,11 @@ class Reporter():
         self.url = url
         self.error_header = error_header
         self.error_footer = error_footer
-        self.interval_reports = {'ok': parse_time(ok_interval), 'error': parse_time(error_interval)}
+        self.interval_reports = {
+            'back': 1.,
+            'error': parse_time(error_interval),
+            'ok': parse_time(ok_interval)
+        }
         self.last_reports = {}
 
     def get_last_report(self, level, idt):
